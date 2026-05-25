@@ -127,7 +127,8 @@
       line-height: 1.35;
     }
 
-    input {
+    input,
+    select {
       width: 100%;
       min-height: 42px;
       border: 1px solid var(--line);
@@ -140,7 +141,8 @@
       outline: none;
     }
 
-    input:focus {
+    input:focus,
+    select:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(47, 118, 101, 0.14);
       background: #fff;
@@ -169,7 +171,7 @@
 
     .food-input {
       display: grid;
-      grid-template-columns: 1fr 92px;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
       align-items: center;
       padding: 10px;
@@ -185,6 +187,31 @@
       min-width: 0;
       color: var(--ink);
       font-weight: 650;
+    }
+
+    .serving-control {
+      display: grid;
+      grid-template-columns: 42px 82px 42px;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .serving-control select {
+      min-height: 42px;
+      text-align: center;
+      text-align-last: center;
+      font-weight: 700;
+    }
+
+    .step-button {
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      min-height: 42px;
+      padding: 0;
+      border-radius: 6px;
+      font-size: 1.25rem;
+      line-height: 1;
     }
 
     .swatch {
@@ -392,7 +419,7 @@
       }
 
       .food-input {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr) auto;
       }
 
       .nutrient-grid {
@@ -419,11 +446,11 @@
         <div class="field-grid">
           <label>
             身高 cm
-            <input id="height" type="number" min="0" step="0.1" value="167">
+            <input id="height" type="number" inputmode="decimal" min="0" step="0.1" placeholder="請輸入">
           </label>
           <label>
             體重 kg
-            <input id="weight" type="number" min="0" step="0.1" value="68">
+            <input id="weight" type="number" inputmode="decimal" min="0" step="0.1" placeholder="請輸入">
           </label>
           <label>
             熱量係數 kcal/kg
@@ -448,7 +475,7 @@
           </div>
           <div class="metric">
             <span>IBW</span>
-            <strong id="ibw" data-value="61.4">61.4 kg</strong>
+            <strong id="ibw" data-value="0">--</strong>
           </div>
           <div class="metric">
             <span>理想體重範圍</span>
@@ -557,16 +584,39 @@
       return Number.isFinite(value) ? value.toFixed(digits) : "--";
     }
 
+    function servingOptions(selectedValue) {
+      let options = "";
+      for (let value = 0; value <= 30; value += 0.5) {
+        const label = Number.isInteger(value) ? String(value) : value.toFixed(1);
+        const selected = value === selectedValue ? " selected" : "";
+        options += `<option value="${value}"${selected}>${label}</option>`;
+      }
+      return options;
+    }
+
     function createInputs() {
       elements.servingInputs.innerHTML = foods.map((food) => `
-        <label class="food-input" style="--food-color:${food.color}">
+        <div class="food-input" style="--food-color:${food.color}">
           <span class="food-name"><span class="swatch"></span>${food.name}</span>
-          <input id="${food.id}" type="number" min="0" step="0.5" value="${food.servings}" aria-label="${food.name}份數">
-        </label>
+          <div class="serving-control" aria-label="${food.name} servings">
+            <button class="step-button" type="button" data-food-id="${food.id}" data-step="-0.5" aria-label="decrease ${food.name} servings">-</button>
+            <select id="${food.id}" aria-label="${food.name} servings">${servingOptions(food.servings)}</select>
+            <button class="step-button" type="button" data-food-id="${food.id}" data-step="0.5" aria-label="increase ${food.name} servings">+</button>
+          </div>
+        </div>
       `).join("");
 
       foods.forEach((food) => {
-        document.querySelector(`#${food.id}`).addEventListener("input", calculate);
+        document.querySelector(`#${food.id}`).addEventListener("change", calculate);
+      });
+
+      elements.servingInputs.querySelectorAll(".step-button").forEach((button) => {
+        button.addEventListener("click", () => {
+          const select = document.querySelector(`#${button.dataset.foodId}`);
+          const nextValue = Math.max(0, Math.min(30, numberValue(button.dataset.foodId) + Number.parseFloat(button.dataset.step)));
+          select.value = String(nextValue);
+          calculate();
+        });
       });
     }
 
@@ -606,6 +656,11 @@
 
     function updateIbwFromHeight() {
       const heightMeters = numberValue("height") / 100;
+      if (!heightMeters) {
+        elements.ibw.dataset.value = "0";
+        elements.ibw.textContent = "--";
+        return;
+      }
       const ibw = 22 * heightMeters * heightMeters;
       elements.ibw.dataset.value = String(ibw);
       elements.ibw.textContent = `${format(ibw, 1)} kg`;
@@ -644,7 +699,7 @@
         `;
       }).join("");
 
-      const bmi = heightMeters > 0 ? weight / (heightMeters * heightMeters) : 0;
+      const bmi = heightMeters > 0 && weight > 0 ? weight / (heightMeters * heightMeters) : NaN;
       const idealMin = 18.5 * heightMeters * heightMeters;
       const idealMax = 23.9 * heightMeters * heightMeters;
       const dailyNeed = ibw * calorieFactor;
@@ -665,10 +720,10 @@
       elements.tableCalories.textContent = format(totals.calories, 0);
       elements.totalCalories.textContent = `${format(totals.calories, 0)} kcal`;
       elements.bmi.textContent = format(bmi, 1);
-      elements.idealRange.textContent = `${format(idealMin, 1)} - ${format(idealMax, 1)} kg`;
-      elements.dailyNeed.textContent = `${format(dailyNeed, 0)} kcal`;
-      elements.calorieGap.textContent = `${gap >= 0 ? "+" : ""}${format(gap, 0)} kcal`;
-      elements.calorieGap.style.color = Math.abs(gap) < 80 ? "var(--accent)" : gap > 0 ? "var(--accent-2)" : "var(--accent-3)";
+      elements.idealRange.textContent = heightMeters ? `${format(idealMin, 1)} - ${format(idealMax, 1)} kg` : "--";
+      elements.dailyNeed.textContent = dailyNeed ? `${format(dailyNeed, 0)} kcal` : "--";
+      elements.calorieGap.textContent = dailyNeed ? `${gap >= 0 ? "+" : ""}${format(gap, 0)} kcal` : "--";
+      elements.calorieGap.style.color = dailyNeed ? Math.abs(gap) < 80 ? "var(--accent)" : gap > 0 ? "var(--accent-2)" : "var(--accent-3)" : "var(--muted)";
       elements.proteinRatio.textContent = `${format(proteinRatio, 1)}%`;
       elements.fatRatio.textContent = `${format(fatRatio, 1)}%`;
       elements.carbRatio.textContent = `${format(carbRatio, 1)}%`;
