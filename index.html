@@ -343,7 +343,8 @@
     table {
       width: 100%;
       min-width: 680px;
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0;
       background: #fff;
     }
 
@@ -367,7 +368,23 @@
       text-align: left;
       position: sticky;
       left: 0;
-      background: inherit;
+      z-index: 2;
+      min-width: 128px;
+      background: #fff;
+      box-shadow: 1px 0 0 var(--line);
+    }
+
+    th:first-child {
+      z-index: 3;
+      background: #f3f6ed;
+    }
+
+    tbody tr:nth-child(even) td:first-child {
+      background: #fbfcf8;
+    }
+
+    tfoot td:first-child {
+      background: var(--soft);
     }
 
     tbody tr:nth-child(even) {
@@ -395,9 +412,48 @@
 
       .topbar,
       .layout,
-      .summary-grid,
       .macro-band {
         grid-template-columns: 1fr;
+      }
+
+      .layout {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .results {
+        display: contents;
+      }
+
+      .summary-grid {
+        order: 1;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        margin-bottom: 0;
+      }
+
+      .input-panel {
+        order: 2;
+        width: 100%;
+      }
+
+      .macro-band {
+        order: 3;
+        width: 100%;
+      }
+
+      .table-wrap {
+        order: 4;
+        width: 100%;
+      }
+
+      .note {
+        order: 5;
+        width: 100%;
+      }
+
+      .layout {
+        gap: 14px;
       }
 
       .topbar {
@@ -454,7 +510,7 @@
           </label>
           <label>
             熱量係數 kcal/kg
-            <input id="calorieFactor" type="number" min="0" step="1" value="30">
+            <input id="calorieFactor" type="number" inputmode="decimal" min="0" step="1" value="30">
           </label>
         </div>
 
@@ -584,9 +640,13 @@
       return Number.isFinite(value) ? value.toFixed(digits) : "--";
     }
 
-    function servingOptions(selectedValue) {
+    function servingMax(foodId) {
+      return foodId === "grain" ? 20 : 10;
+    }
+
+    function servingOptions(selectedValue, maxValue) {
       let options = "";
-      for (let value = 0; value <= 30; value += 0.5) {
+      for (let value = 0; value <= maxValue; value += 0.5) {
         const label = Number.isInteger(value) ? String(value) : value.toFixed(1);
         const selected = value === selectedValue ? " selected" : "";
         options += `<option value="${value}"${selected}>${label}</option>`;
@@ -600,7 +660,7 @@
           <span class="food-name"><span class="swatch"></span>${food.name}</span>
           <div class="serving-control" aria-label="${food.name} servings">
             <button class="step-button" type="button" data-food-id="${food.id}" data-step="-0.5" aria-label="decrease ${food.name} servings">-</button>
-            <select id="${food.id}" aria-label="${food.name} servings">${servingOptions(food.servings)}</select>
+            <select id="${food.id}" aria-label="${food.name} servings">${servingOptions(food.servings, servingMax(food.id))}</select>
             <button class="step-button" type="button" data-food-id="${food.id}" data-step="0.5" aria-label="increase ${food.name} servings">+</button>
           </div>
         </div>
@@ -613,7 +673,7 @@
       elements.servingInputs.querySelectorAll(".step-button").forEach((button) => {
         button.addEventListener("click", () => {
           const select = document.querySelector(`#${button.dataset.foodId}`);
-          const nextValue = Math.max(0, Math.min(30, numberValue(button.dataset.foodId) + Number.parseFloat(button.dataset.step)));
+          const nextValue = Math.max(0, Math.min(servingMax(button.dataset.foodId), numberValue(button.dataset.foodId) + Number.parseFloat(button.dataset.step)));
           select.value = String(nextValue);
           calculate();
         });
