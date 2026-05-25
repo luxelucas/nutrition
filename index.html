@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>熱量與營養量計算</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f2;
+      --panel: #ffffff;
+      --ink: #20231f;
+      --muted: #667067;
+      --line: #dfe4d9;
+      --field: #f9faf6;
+      --accent: #2f7665;
+      --accent-2: #b54f3a;
+      --accent-3: #496f9f;
+      --soft: #eaf3ee;
+      --shadow: 0 18px 45px rgba(41, 47, 38, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(135deg, rgba(47, 118, 101, 0.11), transparent 34%),
+        linear-gradient(315deg, rgba(181, 79, 58, 0.10), transparent 38%),
+        var(--bg);
+      color: var(--ink);
+      font-family: "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+
+    main {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 36px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.55rem, 3vw, 2.35rem);
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+      line-height: 1.6;
+    }
+
+    .total-badge {
+      min-width: 210px;
+      padding: 14px 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.76);
+      box-shadow: var(--shadow);
+      text-align: right;
+    }
+
+    .total-badge span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 4px;
+    }
+
+    .total-badge strong {
+      font-size: 1.85rem;
+      line-height: 1;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 380px) 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .input-panel {
+      position: sticky;
+      top: 18px;
+      padding: 18px;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 1.02rem;
+      letter-spacing: 0;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.35;
+    }
+
+    input {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--field);
+      color: var(--ink);
+      font: inherit;
+      font-size: 1rem;
+      padding: 9px 10px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(47, 118, 101, 0.14);
+      background: #fff;
+    }
+
+    button {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover {
+      filter: brightness(0.96);
+    }
+
+    .servings {
+      display: grid;
+      gap: 10px;
+    }
+
+    .food-input {
+      display: grid;
+      grid-template-columns: 1fr 92px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcf8;
+    }
+
+    .food-name {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    .swatch {
+      width: 12px;
+      height: 32px;
+      flex: 0 0 auto;
+      border-radius: 4px;
+      background: var(--food-color);
+    }
+
+    .editor-toggle {
+      margin-top: 16px;
+    }
+
+    .nutrition-editor {
+      display: none;
+      margin-top: 12px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .nutrition-editor.is-open {
+      display: block;
+    }
+
+    .editor-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .editor-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcf8;
+      padding: 12px;
+    }
+
+    .editor-card h3 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      letter-spacing: 0;
+    }
+
+    .nutrient-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+    }
+
+    .metric strong {
+      font-size: 1.35rem;
+      line-height: 1.1;
+    }
+
+    .results {
+      padding: 18px;
+      overflow: hidden;
+    }
+
+    .macro-band {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .macro {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfcf8;
+    }
+
+    .macro-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .bar {
+      height: 9px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e7eadd;
+    }
+
+    .bar > div {
+      height: 100%;
+      width: var(--w);
+      min-width: 2px;
+      border-radius: inherit;
+      background: var(--c);
+      transition: width 160ms ease;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 680px;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    th,
+    td {
+      padding: 12px 11px;
+      border-bottom: 1px solid var(--line);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      color: var(--muted);
+      background: #f3f6ed;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    td:first-child,
+    th:first-child {
+      text-align: left;
+      position: sticky;
+      left: 0;
+      background: inherit;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #fbfcf8;
+    }
+
+    tfoot td {
+      background: var(--soft);
+      font-weight: 750;
+      border-bottom: 0;
+    }
+
+    .note {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 860px) {
+      main {
+        width: min(100% - 20px, 720px);
+        padding-top: 16px;
+      }
+
+      .topbar,
+      .layout,
+      .summary-grid,
+      .macro-band {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        display: grid;
+      }
+
+      .total-badge {
+        text-align: left;
+      }
+
+      .input-panel {
+        position: static;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .field-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .food-input {
+        grid-template-columns: 1fr;
+      }
+
+      .nutrient-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="topbar">
+      <div>
+        <h1>熱量與營養量計算</h1>
+      </div>
+      <div class="total-badge" aria-live="polite">
+        <span>總熱量</span>
+        <strong id="totalCalories">0 kcal</strong>
+      </div>
+    </header>
+
+    <div class="layout">
+      <section class="input-panel" aria-label="輸入區">
+        <h2>身體資料</h2>
+        <div class="field-grid">
+          <label>
+            身高 cm
+            <input id="height" type="number" min="0" step="0.1" value="167">
+          </label>
+          <label>
+            體重 kg
+            <input id="weight" type="number" min="0" step="0.1" value="68">
+          </label>
+          <label>
+            熱量係數 kcal/kg
+            <input id="calorieFactor" type="number" min="0" step="1" value="30">
+          </label>
+        </div>
+
+        <h2>食物份數</h2>
+        <div class="servings" id="servingInputs"></div>
+        <button class="editor-toggle" id="toggleNutritionEditor" type="button" aria-expanded="false" aria-controls="nutritionEditor">修改每份營養量</button>
+        <div class="nutrition-editor" id="nutritionEditor">
+          <h2>每份營養量</h2>
+          <div class="editor-list" id="nutritionEditorList"></div>
+        </div>
+      </section>
+
+      <section class="results" aria-label="結果區">
+        <div class="summary-grid">
+          <div class="metric">
+            <span>BMI</span>
+            <strong id="bmi">--</strong>
+          </div>
+          <div class="metric">
+            <span>IBW</span>
+            <strong id="ibw" data-value="61.4">61.4 kg</strong>
+          </div>
+          <div class="metric">
+            <span>理想體重範圍</span>
+            <strong id="idealRange">--</strong>
+          </div>
+          <div class="metric">
+            <span>每日熱量需求</span>
+            <strong id="dailyNeed">--</strong>
+          </div>
+          <div class="metric">
+            <span>目前差距</span>
+            <strong id="calorieGap">--</strong>
+          </div>
+        </div>
+
+        <div class="macro-band" aria-label="三大營養素熱量比例">
+          <div class="macro">
+            <div class="macro-head"><span>蛋白質</span><strong id="proteinRatio">0%</strong></div>
+            <div class="bar"><div id="proteinBar" style="--w:0%;--c:#2f7665"></div></div>
+          </div>
+          <div class="macro">
+            <div class="macro-head"><span>脂肪</span><strong id="fatRatio">0%</strong></div>
+            <div class="bar"><div id="fatBar" style="--w:0%;--c:#b54f3a"></div></div>
+          </div>
+          <div class="macro">
+            <div class="macro-head"><span>碳水化合物</span><strong id="carbRatio">0%</strong></div>
+            <div class="bar"><div id="carbBar" style="--w:0%;--c:#496f9f"></div></div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>食物種類</th>
+                <th>份數</th>
+                <th>蛋白質 g</th>
+                <th>脂肪 g</th>
+                <th>碳水 g</th>
+                <th>熱量 kcal</th>
+              </tr>
+            </thead>
+            <tbody id="nutritionRows"></tbody>
+            <tfoot>
+              <tr>
+                <td>合計</td>
+                <td id="totalServings">0</td>
+                <td id="totalProtein">0</td>
+                <td id="totalFat">0</td>
+                <td id="totalCarb">0</td>
+                <td id="tableCalories">0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="note">IBW 依照輸入身高用 BMI 22 自動計算，並用來估算每日熱量需求。</p>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const foods = [
+      { id: "grain", name: "全穀雜糧類", servings: 16, protein: 2, fat: 0, carb: 15, calories: 68, color: "#7c6b36" },
+      { id: "protein", name: "豆魚蛋肉類", servings: 3, protein: 7, fat: 5, carb: 0, calories: 73, color: "#9c4a3f" },
+      { id: "dairy", name: "乳品類", servings: 0.5, protein: 8, fat: 4, carb: 12, calories: 116, color: "#447a9f" },
+      { id: "vegetable", name: "蔬菜類", servings: 3, protein: 1, fat: 0, carb: 5, calories: 24, color: "#3f8450" },
+      { id: "fruit", name: "水果類", servings: 1, protein: 0, fat: 0, carb: 15, calories: 60, color: "#c2832d" },
+      { id: "oil", name: "油脂類", servings: 5, protein: 0, fat: 5, carb: 0, calories: 45, color: "#b7983a" },
+      { id: "nuts", name: "堅果種子類", servings: 0, protein: 0, fat: 5, carb: 0, calories: 45, color: "#6d5a43" }
+    ];
+
+    const elements = {
+      height: document.querySelector("#height"),
+      weight: document.querySelector("#weight"),
+      ibw: document.querySelector("#ibw"),
+      calorieFactor: document.querySelector("#calorieFactor"),
+      servingInputs: document.querySelector("#servingInputs"),
+      toggleNutritionEditor: document.querySelector("#toggleNutritionEditor"),
+      nutritionEditor: document.querySelector("#nutritionEditor"),
+      nutritionEditorList: document.querySelector("#nutritionEditorList"),
+      nutritionRows: document.querySelector("#nutritionRows"),
+      totalCalories: document.querySelector("#totalCalories"),
+      totalServings: document.querySelector("#totalServings"),
+      totalProtein: document.querySelector("#totalProtein"),
+      totalFat: document.querySelector("#totalFat"),
+      totalCarb: document.querySelector("#totalCarb"),
+      tableCalories: document.querySelector("#tableCalories"),
+      bmi: document.querySelector("#bmi"),
+      idealRange: document.querySelector("#idealRange"),
+      dailyNeed: document.querySelector("#dailyNeed"),
+      calorieGap: document.querySelector("#calorieGap"),
+      proteinRatio: document.querySelector("#proteinRatio"),
+      fatRatio: document.querySelector("#fatRatio"),
+      carbRatio: document.querySelector("#carbRatio"),
+      proteinBar: document.querySelector("#proteinBar"),
+      fatBar: document.querySelector("#fatBar"),
+      carbBar: document.querySelector("#carbBar")
+    };
+
+    function numberValue(id) {
+      const input = document.querySelector(`#${id}`);
+      return Number.parseFloat(input.value) || 0;
+    }
+
+    function format(value, digits = 1) {
+      return Number.isFinite(value) ? value.toFixed(digits) : "--";
+    }
+
+    function createInputs() {
+      elements.servingInputs.innerHTML = foods.map((food) => `
+        <label class="food-input" style="--food-color:${food.color}">
+          <span class="food-name"><span class="swatch"></span>${food.name}</span>
+          <input id="${food.id}" type="number" min="0" step="0.5" value="${food.servings}" aria-label="${food.name}份數">
+        </label>
+      `).join("");
+
+      foods.forEach((food) => {
+        document.querySelector(`#${food.id}`).addEventListener("input", calculate);
+      });
+    }
+
+    function createNutritionEditor() {
+      elements.nutritionEditorList.innerHTML = foods.map((food) => `
+        <div class="editor-card" style="--food-color:${food.color}">
+          <h3><span class="swatch"></span>${food.name}</h3>
+          <div class="nutrient-grid">
+            <label>
+              蛋白質 g
+              <input id="${food.id}-protein" data-food-id="${food.id}" data-nutrient="protein" type="number" min="0" step="0.1" value="${food.protein}">
+            </label>
+            <label>
+              脂肪 g
+              <input id="${food.id}-fat" data-food-id="${food.id}" data-nutrient="fat" type="number" min="0" step="0.1" value="${food.fat}">
+            </label>
+            <label>
+              碳水 g
+              <input id="${food.id}-carb" data-food-id="${food.id}" data-nutrient="carb" type="number" min="0" step="0.1" value="${food.carb}">
+            </label>
+            <label>
+              熱量 kcal
+              <input id="${food.id}-calories" data-food-id="${food.id}" data-nutrient="calories" type="number" min="0" step="1" value="${food.calories}">
+            </label>
+          </div>
+        </div>
+      `).join("");
+
+      elements.nutritionEditorList.querySelectorAll("input").forEach((input) => {
+        input.addEventListener("input", () => {
+          const food = foods.find((item) => item.id === input.dataset.foodId);
+          food[input.dataset.nutrient] = Number.parseFloat(input.value) || 0;
+          calculate();
+        });
+      });
+    }
+
+    function updateIbwFromHeight() {
+      const heightMeters = numberValue("height") / 100;
+      const ibw = 22 * heightMeters * heightMeters;
+      elements.ibw.dataset.value = String(ibw);
+      elements.ibw.textContent = `${format(ibw, 1)} kg`;
+    }
+
+    function calculate() {
+      const heightMeters = numberValue("height") / 100;
+      const weight = numberValue("weight");
+      const ibw = Number.parseFloat(elements.ibw.dataset.value) || 0;
+      const calorieFactor = numberValue("calorieFactor");
+      const totals = { servings: 0, protein: 0, fat: 0, carb: 0, calories: 0 };
+
+      const rows = foods.map((food) => {
+        const servings = numberValue(food.id);
+        const values = {
+          servings,
+          protein: servings * food.protein,
+          fat: servings * food.fat,
+          carb: servings * food.carb,
+          calories: servings * food.calories
+        };
+
+        Object.keys(totals).forEach((key) => {
+          totals[key] += values[key];
+        });
+
+        return `
+          <tr>
+            <td>${food.name}</td>
+            <td>${format(values.servings, 1)}</td>
+            <td>${format(values.protein, 1)}</td>
+            <td>${format(values.fat, 1)}</td>
+            <td>${format(values.carb, 1)}</td>
+            <td>${format(values.calories, 0)}</td>
+          </tr>
+        `;
+      }).join("");
+
+      const bmi = heightMeters > 0 ? weight / (heightMeters * heightMeters) : 0;
+      const idealMin = 18.5 * heightMeters * heightMeters;
+      const idealMax = 23.9 * heightMeters * heightMeters;
+      const dailyNeed = ibw * calorieFactor;
+      const gap = totals.calories - dailyNeed;
+      const proteinKcal = totals.protein * 4;
+      const fatKcal = totals.fat * 9;
+      const carbKcal = totals.carb * 4;
+      const macroKcal = proteinKcal + fatKcal + carbKcal;
+      const proteinRatio = macroKcal ? proteinKcal / macroKcal * 100 : 0;
+      const fatRatio = macroKcal ? fatKcal / macroKcal * 100 : 0;
+      const carbRatio = macroKcal ? carbKcal / macroKcal * 100 : 0;
+
+      elements.nutritionRows.innerHTML = rows;
+      elements.totalServings.textContent = format(totals.servings, 1);
+      elements.totalProtein.textContent = format(totals.protein, 1);
+      elements.totalFat.textContent = format(totals.fat, 1);
+      elements.totalCarb.textContent = format(totals.carb, 1);
+      elements.tableCalories.textContent = format(totals.calories, 0);
+      elements.totalCalories.textContent = `${format(totals.calories, 0)} kcal`;
+      elements.bmi.textContent = format(bmi, 1);
+      elements.idealRange.textContent = `${format(idealMin, 1)} - ${format(idealMax, 1)} kg`;
+      elements.dailyNeed.textContent = `${format(dailyNeed, 0)} kcal`;
+      elements.calorieGap.textContent = `${gap >= 0 ? "+" : ""}${format(gap, 0)} kcal`;
+      elements.calorieGap.style.color = Math.abs(gap) < 80 ? "var(--accent)" : gap > 0 ? "var(--accent-2)" : "var(--accent-3)";
+      elements.proteinRatio.textContent = `${format(proteinRatio, 1)}%`;
+      elements.fatRatio.textContent = `${format(fatRatio, 1)}%`;
+      elements.carbRatio.textContent = `${format(carbRatio, 1)}%`;
+      elements.proteinBar.style.setProperty("--w", `${proteinRatio}%`);
+      elements.fatBar.style.setProperty("--w", `${fatRatio}%`);
+      elements.carbBar.style.setProperty("--w", `${carbRatio}%`);
+    }
+
+    createInputs();
+    createNutritionEditor();
+    updateIbwFromHeight();
+    calculate();
+
+    elements.toggleNutritionEditor.addEventListener("click", () => {
+      const isOpen = elements.nutritionEditor.classList.toggle("is-open");
+      elements.toggleNutritionEditor.setAttribute("aria-expanded", String(isOpen));
+      elements.toggleNutritionEditor.textContent = isOpen ? "收起每份營養量" : "修改每份營養量";
+    });
+
+    elements.height.addEventListener("input", () => {
+      updateIbwFromHeight();
+      calculate();
+    });
+    elements.weight.addEventListener("input", calculate);
+    elements.calorieFactor.addEventListener("input", calculate);
+  </script>
+</body>
+</html>
