@@ -190,10 +190,7 @@
     }
 
     .serving-control {
-      display: grid;
-      grid-template-columns: 42px 82px 42px;
-      gap: 6px;
-      align-items: center;
+      width: 92px;
     }
 
     .serving-control select {
@@ -201,17 +198,6 @@
       text-align: center;
       text-align-last: center;
       font-weight: 700;
-    }
-
-    .step-button {
-      display: inline-grid;
-      place-items: center;
-      width: 42px;
-      min-height: 42px;
-      padding: 0;
-      border-radius: 6px;
-      font-size: 1.25rem;
-      line-height: 1;
     }
 
     .swatch {
@@ -659,9 +645,7 @@
         <div class="food-input" style="--food-color:${food.color}">
           <span class="food-name"><span class="swatch"></span>${food.name}</span>
           <div class="serving-control" aria-label="${food.name} servings">
-            <button class="step-button" type="button" data-food-id="${food.id}" data-step="-0.5" aria-label="decrease ${food.name} servings">-</button>
             <select id="${food.id}" aria-label="${food.name} servings">${servingOptions(food.servings, servingMax(food.id))}</select>
-            <button class="step-button" type="button" data-food-id="${food.id}" data-step="0.5" aria-label="increase ${food.name} servings">+</button>
           </div>
         </div>
       `).join("");
@@ -670,14 +654,6 @@
         document.querySelector(`#${food.id}`).addEventListener("change", calculate);
       });
 
-      elements.servingInputs.querySelectorAll(".step-button").forEach((button) => {
-        button.addEventListener("click", () => {
-          const select = document.querySelector(`#${button.dataset.foodId}`);
-          const nextValue = Math.max(0, Math.min(servingMax(button.dataset.foodId), numberValue(button.dataset.foodId) + Number.parseFloat(button.dataset.step)));
-          select.value = String(nextValue);
-          calculate();
-        });
-      });
     }
 
     function createNutritionEditor() {
