@@ -252,7 +252,7 @@
 
     .summary-grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: 12px;
       margin-bottom: 18px;
     }
@@ -524,11 +524,15 @@
             <strong id="idealRange">--</strong>
           </div>
           <div class="metric">
-            <span>每日熱量需求</span>
+            <span>IBW熱量需求</span>
             <strong id="dailyNeed">--</strong>
           </div>
           <div class="metric">
-            <span>目前差距</span>
+            <span>目前體重需求</span>
+            <strong id="weightNeed">--</strong>
+          </div>
+          <div class="metric">
+            <span>目前差距(IBW)</span>
             <strong id="calorieGap">--</strong>
           </div>
         </div>
@@ -581,8 +585,12 @@
   <script>
     const foods = [
       { id: "grain", name: "全穀雜糧類", servings: 16, protein: 2, fat: 0, carb: 15, calories: 68, color: "#7c6b36" },
-      { id: "protein", name: "豆魚蛋肉類", servings: 3, protein: 7, fat: 5, carb: 0, calories: 73, color: "#9c4a3f" },
-      { id: "dairy", name: "乳品類", servings: 0.5, protein: 8, fat: 4, carb: 12, calories: 116, color: "#447a9f" },
+      { id: "proteinHigh", name: "豆魚蛋肉類(高脂)", servings: 0, protein: 7, fat: 10, carb: 0, calories: 118, color: "#8f3b36" },
+      { id: "proteinMid", name: "豆魚蛋肉類(中脂)", servings: 3, protein: 7, fat: 5, carb: 0, calories: 73, color: "#9c4a3f" },
+      { id: "proteinLow", name: "豆魚蛋肉類(低脂)", servings: 0, protein: 7, fat: 3, carb: 0, calories: 55, color: "#b46b5e" },
+      { id: "dairyHigh", name: "乳品類(高脂)", servings: 0, protein: 8, fat: 8, carb: 12, calories: 152, color: "#315f87" },
+      { id: "dairyLow", name: "乳品類(低脂)", servings: 0.5, protein: 8, fat: 4, carb: 12, calories: 116, color: "#447a9f" },
+      { id: "dairySkim", name: "乳品類(脫脂)", servings: 0, protein: 8, fat: 0, carb: 12, calories: 80, color: "#6a9bc0" },
       { id: "vegetable", name: "蔬菜類", servings: 3, protein: 1, fat: 0, carb: 5, calories: 24, color: "#3f8450" },
       { id: "fruit", name: "水果類", servings: 1, protein: 0, fat: 0, carb: 15, calories: 60, color: "#c2832d" },
       { id: "oil", name: "油脂類", servings: 5, protein: 0, fat: 5, carb: 0, calories: 45, color: "#b7983a" },
@@ -608,6 +616,7 @@
       bmi: document.querySelector("#bmi"),
       idealRange: document.querySelector("#idealRange"),
       dailyNeed: document.querySelector("#dailyNeed"),
+      weightNeed: document.querySelector("#weightNeed"),
       calorieGap: document.querySelector("#calorieGap"),
       proteinRatio: document.querySelector("#proteinRatio"),
       fatRatio: document.querySelector("#fatRatio"),
@@ -739,6 +748,7 @@
       const idealMin = 18.5 * heightMeters * heightMeters;
       const idealMax = 23.9 * heightMeters * heightMeters;
       const dailyNeed = ibw * calorieFactor;
+      const weightNeed = weight > 0 ? weight * calorieFactor : 0;
       const gap = totals.calories - dailyNeed;
       const proteinKcal = totals.protein * 4;
       const fatKcal = totals.fat * 9;
@@ -758,6 +768,7 @@
       elements.bmi.textContent = format(bmi, 1);
       elements.idealRange.textContent = heightMeters ? `${format(idealMin, 1)} - ${format(idealMax, 1)} kg` : "--";
       elements.dailyNeed.textContent = dailyNeed ? `${format(dailyNeed, 0)} kcal` : "--";
+      elements.weightNeed.textContent = weightNeed ? `${format(weightNeed, 0)} kcal` : "--";
       elements.calorieGap.textContent = dailyNeed ? `${gap >= 0 ? "+" : ""}${format(gap, 0)} kcal` : "--";
       elements.calorieGap.style.color = dailyNeed ? Math.abs(gap) < 80 ? "var(--accent)" : gap > 0 ? "var(--accent-2)" : "var(--accent-3)" : "var(--muted)";
       elements.proteinRatio.textContent = `${format(proteinRatio, 1)}%`;
